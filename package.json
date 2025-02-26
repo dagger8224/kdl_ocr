@@ -1,0 +1,83 @@
+{
+  "name": "kdl_ocr",
+  "version": "1.0.0",
+  "description": "kdl_ocr",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "none"
+  ],
+  "author": "towan",
+  "license": "MIT",
+  "dependencies": {
+    "node-xlsx": "0.24.0",
+    "pdfjs-dist": "^4.10.38"
+  },
+  "devDependencies": {
+    "@electron/fuses": "^1.8.0",
+    "electron": "33.2.1",
+    "electron-builder": "^25.1.8"
+  },
+  "build": {
+    "appId": "com.caotaibanzi.batchProcessApp",
+    "productName": "康德乐订单智能处理系统",
+    "electronVersion": "33.2.1",
+    "asar": true,
+    "npmRebuild": false,
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "page/**/*",
+      "main.js",
+      "utils.js",
+      "preload.js",
+      "node_modules/**/*"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowElevation": true,
+      "allowToChangeInstallationDirectory": true,
+      "installerIcon": "icon.ico",
+      "uninstallerIcon": "icon.ico",
+      "installerHeaderIcon": "icon.ico",
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "康德乐订单智能处理系统",
+      "include": "installer.nsh"
+    },
+    "mac": {
+      "target": "dmg",
+      "icon": "icon.icns"
+    },
+    "dmg": {
+      "contents": [
+        {
+          "x": 410,
+          "y": 150,
+          "type": "link",
+          "path": "/Applications"
+        },
+        {
+          "x": 130,
+          "y": 150,
+          "type": "file"
+        }
+      ]
+    }
+  }
+}
