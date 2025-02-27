@@ -10,13 +10,34 @@
     <link rel="stylesheet" href="./style.css">
     <script type="text/javascript" src="./utils.js" defer></script>
     <script type="text/javascript" src="./script.js" defer></script>
-    <title>康德乐订单智能处理系统</title>
+    <title>DeepSeek订单智能处理系统</title>
   </head>
 
   <body>
     <div id="toast"></div>
     <div id="errorView"></div>
+    <div id="loginView">
+      <div class="title">账号登录</div>
+      <form id="loginForm">
+        <div class="formItem">
+          <input id="userNameInput" type="text" name="username" maxlength="20" autocomplete="on" placeholder="请输入用户名" required>
+        </div>
+        <div class="formItem">
+          <input id="passwordInput" type="password" name="password" autocomplete="on" placeholder="请输入密码" required>
+        </div>
+        <div class="formItem">
+          <button id="loginButton" type="submit">登录</button>
+        </div>
+      </form>
+    </div>
     <div id="operateView">
+      <div id="header">
+        <span class="prefix">当前登录用户：</span>
+        <span id="headerUserName"></span>
+        <span class="prefix">登录时长：</span>
+        <span id="loginDuration"></span>
+        <a id="logoutLink" href="#">退出</a>
+      </div>
       <label>导入pdf文件</label>
       <button id="importPdfFileButton">导入并识别</button>
       <input id="importPdfFileInput" type="file" accept="*.pdf">

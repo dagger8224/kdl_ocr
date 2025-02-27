@@ -1,7 +1,11 @@
 const viewIdList = ['errorView', 'loginView', 'operateView'];
 
+let $timerId = 0;
+
 window.$utils = {
     setLoginDuration: startTime => {
+        $timerId && clearTimeout($timerId);
+        $timerId = setTimeout(() => $utils.setLoginDuration(startTime), 1000);
         const seconds = (Date.now() - startTime) / 1000;
         const hours = Math.floor(seconds / 3600);
         const minutes = Math.floor((seconds % 3600) / 60);
@@ -10,7 +14,6 @@ window.$utils = {
         const formattedMinutes = minutes.toString().padStart(2, '0');
         const formattedSeconds = remainingSeconds.toString().padStart(2, '0');
         loginDuration.innerText = `${formattedHours}:${formattedMinutes}:${formattedSeconds}`;
-        setTimeout(() => $utils.setLoginDuration(startTime), 1000);
     },
     setToast: (message, duration = 2000) => {
         toast.innerText = message;

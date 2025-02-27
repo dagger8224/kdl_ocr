@@ -9,6 +9,15 @@ const dataPath = '../data';
 const inputFilePath = `${ dataPath }/input.pdf`;
 const outputFilePath = `${ dataPath }/output.xlsx`;
 
+const loginErrorMessage = '账号或者密码有误，请重新输入';
+
+const profile = {
+  config: {},
+  licenseInfo: {
+    loginTime: 0
+  }
+};
+
 // 观察文件状态
 const fileExistsStateWatcher = () => BrowserWindow.getAllWindows()[0].webContents.send('fileExistsState', {
   openPdfFileButton: fs.existsSync(inputFilePath),
@@ -69,8 +78,50 @@ app.on('window-all-closed', () => {
 
 // 获取配置信息
 ipcMain.handle('getVersion', async () => {
-  profile.config = await utils.fetcher('https://towan-cos-beijing-1304741629.cos.ap-beijing.myqcloud.com/batchProcessApp/config.json');
+  profile.config = await utils.fetcher('https://towan-cos-beijing-1304741629.cos.ap-beijing.myqcloud.com/deepSeek/config.json');
   return profile.config.version;
+});
+
+// 获取授权信息
+ipcMain.handle('getLoginInfo', async () => {
+  return profile.licenseInfo;
+});
+
+// 验证授权信息
+ipcMain.handle('verifyLicense', async (_, account, password) => {
+  const licenseMap = await utils.fetcher('https://towan-cos-beijing-1304741629.cos.ap-beijing.myqcloud.com/deepSeek/license.json');
+  const licenseInfo = licenseMap[account];
+  if (licenseInfo) {
+    if (password !== licenseInfo.password) {
+      return {
+        message: loginErrorMessage
+      };
+    }
+    const { username, startTime, authMode } = licenseInfo;
+    profile.licenseInfo = {
+      username,
+      authMode: authMode === 3 ? ' (试用版)' : '',
+      leftDays: Math.max(authMode - Math.floor((Date.now() - new Date(startTime).getTime()) / (24 * 60 * 60 * 1000)), 0),
+      loginTime: Date.now()
+    };
+    BrowserWindow.getAllWindows()[0].webContents.send('updateHeader', profile.licenseInfo);
+    return {
+      message: '登录成功',
+      licenseInfo: profile.licenseInfo
+    };
+  } else {
+    return {
+      message: loginErrorMessage
+    };
+  }
+});
+
+// 退出登录
+ipcMain.handle('logout', () => {
+  profile.licenseInfo = {
+    loginTime: 0
+  };
+  return true;
 });
 
 // 导入明细表数据

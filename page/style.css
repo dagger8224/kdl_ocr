@@ -7,9 +7,9 @@ html, body {
     height: 100%;
     font-size: 20px;
     color: rgba(50, 50, 50, 1);
-    background-image: url(./assets/background.png);
+    background-image: url(./assets/ai.webp);
     background-repeat: no-repeat;
-    background-size: cover;
+    background-size: contain;
     background-position: center;
 }
 
@@ -38,7 +38,7 @@ input {
     height: 20px;
 }
 
-input[type=file], #toast, #errorView {
+input[type=file], #toast, #errorView, #loginView, #operateView {
     display: none;
 }
 
@@ -74,6 +74,69 @@ input[type=file], #toast, #errorView {
     color: #ff0000;
 }
 
+#loginView {
+    position: fixed;
+    top: 70px;
+    left: 70px;
+    padding: 30px;
+    width: 300px;
+    border: 1px solid #aaaaaa;
+    border-radius: 10px;
+    box-shadow: 6px 6px 3px #999999;
+}
+
+#loginView .title {
+    margin-bottom: 20px;
+    font-size: 20px;
+    font-weight: 600;
+    text-align: center;
+}
+
+#userNameInput, #passwordInput {
+    box-sizing: border-box;
+    margin-bottom: 20px;
+    width: 100%;
+    height: 35px;
+    line-height: 35px;
+    padding: 10px;
+    vertical-align: middle;
+}
+
+#loginButton {
+    box-sizing: border-box;
+    text-align: center;
+    margin: 0;
+    width: 100%;
+    height: 35px;
+    line-height: 35px;
+    color: #ffffff;
+    background-color: rgb(58, 181, 183);
+}
+
 #operateView {
-    margin: 25px;
+    padding: 0 30px;
+}
+
+#header {
+    position: relative;
+    margin-bottom: 15px;
+    height: 40px;
+    line-height: 40px;
+    vertical-align: middle;
+    font-size: 16px;
+    color: #dddddd;
+}
+
+#header a {
+    color: #ff0000;
+    text-decoration: none;
+}
+
+#headerUserName {
+    margin-right: 20px;
+}
+
+#logoutLink {
+    float: right;
+    margin-right: 8px;
 }

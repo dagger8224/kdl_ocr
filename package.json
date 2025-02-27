@@ -24,7 +24,7 @@
   },
   "build": {
     "appId": "com.caotaibanzi.batchProcessApp",
-    "productName": "康德乐订单智能处理系统",
+    "productName": "DeepSeek订单智能处理系统",
     "electronVersion": "33.2.1",
     "asar": true,
     "npmRebuild": false,
@@ -57,7 +57,7 @@
       "installerHeaderIcon": "icon.ico",
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "康德乐订单智能处理系统",
+      "shortcutName": "DeepSeek订单智能处理系统",
       "include": "installer.nsh"
     },
     "mac": {
