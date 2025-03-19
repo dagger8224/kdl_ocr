@@ -124,15 +124,15 @@ ipcMain.handle('logout', () => {
   return true;
 });
 
-// 导入明细表数据
-ipcMain.handle('importPdfFile', async (_, filePath) => {
+// 导入pdf数据
+ipcMain.handle('importPdfFile', async (_, filePath, isType1) => {
   try {
     fs.copyFileSync(filePath, inputFilePath, fs.constants.COPYFILE_FICLONE);
     const contentList = await utils.getTextFromPDF(inputFilePath);
     const pageCount = contentList.length;
     let fullTokens = contentList.map(page => page.tokens).flat();
-    const SiemensOrderIndex = fullTokens.indexOf('Siemens Reference Number 西门子订单号');
-    const baseRowData = [fullTokens[SiemensOrderIndex + 2], fullTokens[fullTokens.indexOf('发货通知单号:') + 1], fullTokens[SiemensOrderIndex + 1], fullTokens[SiemensOrderIndex + 3]];
+    const SiemensOrderIndex = fullTokens.findIndex(token => token.startsWith('Siemens Reference Number'));
+    const baseRowData = isType1 ? [fullTokens[SiemensOrderIndex + 2], fullTokens[fullTokens.indexOf('发货通知单号:') + 1], fullTokens[SiemensOrderIndex + 1], fullTokens[SiemensOrderIndex + 3]] : [fullTokens[SiemensOrderIndex + 3], fullTokens[SiemensOrderIndex + 2], fullTokens[SiemensOrderIndex + 4]];
     let startIndex = 0;
     let endIndex = 0;
     do {
@@ -143,42 +143,55 @@ ipcMain.handle('importPdfFile', async (_, filePath) => {
     let pageIndex = 1;
     while (pageIndex <= pageCount) {
       startIndex = fullTokens.findIndex(token => token.startsWith(`Page ${ pageIndex } of`));
-      endIndex = fullTokens.findIndex(token => token.endsWith(`${ pageCount }页`));
+      endIndex = fullTokens.findIndex(token => token.endsWith(isType1 ? `${ pageCount }页` : `${ pageCount } 页`));
       fullTokens.splice(startIndex, endIndex - startIndex + 1);
       pageIndex++;
     }
-    fullTokens = fullTokens.slice(0, fullTokens.findIndex(token => token.startsWith('These items are controlled by the U.S.')));
+    fullTokens = fullTokens.slice(0, fullTokens.findIndex(token => token.startsWith(isType1 ? 'These items are controlled by the U.S.' : 'RESERVATION CLAUSE')));
+    const headerRow = isType1 ? ['发货日期', '发货单号', '客户订单号', '西门子订单号', '西门子编码', '储存温度'] : ['发货日期', '客户订单号', '西门子订单号', '西门子编码', '储存温度', '数量', '单价', '金额'];
+    const resultData = [headerRow];
     const groupPrefix = ['批号', '数量', '单位', '效期', '生产日期']; // 可能有多组批号效期数据
     const groupLength = groupPrefix.length;
-    const headerRow = ['发货日期', '发货单号', '客户订单号', '西门子订单号', '西门子编码'];
-    const resultData = [headerRow];
-    let itemStartNumber = fullTokens[0] - 0; // 起始序号转为数字，应该为10
+    let baseIndex = isType1 ? 0 : 11;
+    let itemStartNumber = fullTokens[baseIndex] - 0; // 起始序号转为数字，应该为10/1000
     let itemStartNumberIndex = 0;
     while (fullTokens.length) {
       const rowData = [...baseRowData];
-      rowData.push(fullTokens[1]); // 西门子编码
-      itemStartNumber += 10;
+      rowData.push(fullTokens[baseIndex + 1]); // 西门子编码
+      itemStartNumber += isType1 ? 10 : 1000;
       itemStartNumberIndex = fullTokens.indexOf((itemStartNumber + '').padStart(6, '0'));
       itemStartNumberIndex === -1 && (itemStartNumberIndex = fullTokens.length);
       const currentTokens = fullTokens.slice(0, itemStartNumberIndex);
-      // 第一页结构与后面的不一样，分别处理
-      startIndex = 0;
-      if (itemStartNumber === 20) {
-        startIndex = currentTokens.findIndex(token => token.trim().endsWith('Manuf. Date'));
-      } else {
-        startIndex = currentTokens.findIndex(token => token.trim().startsWith('CFDA License:'));
-        if (startIndex === -1) {
-          startIndex = currentTokens.findIndex(token => token.trim().startsWith('Country of Origin:'));
+      const storageCondition = currentTokens.find(token => token.trim().startsWith('Storage Condition:'));
+      rowData.push(storageCondition ? storageCondition.replace('Storage Condition:', '').trim() : '-');
+      if (isType1) {
+        // 第一页结构与后面的不一样，分别处理
+        startIndex = 0;
+        if (itemStartNumber === 20) {
+          startIndex = currentTokens.findIndex(token => token.trim().endsWith('Manuf. Date'));
+        } else {
+          startIndex = currentTokens.findIndex(token => token.trim().startsWith('CFDA License:'));
+          if (startIndex === -1) {
+            startIndex = currentTokens.findIndex(token => token.trim().startsWith('Country of Origin:'));
+          }
         }
+        const splitTokens = currentTokens.slice(startIndex + 1, itemStartNumberIndex).join('/').split('/').filter(token => token.trim()).map(token => token.trim());
+        splitTokens.forEach((token, index) => {
+          const fieldName = `${ groupPrefix[index % groupLength] }${ Math.floor(index / groupLength) + 1 }`;
+          headerRow.includes(fieldName) || headerRow.push(fieldName);
+          if ((index === 3 || index === 4) && !token.includes('/')) {
+            token = `${ token.slice(0, 4) }/${ token.slice(4, 6) }/${ token.slice(6, 8) }`;
+          }
+          rowData.push(token);
+        });
+      } else {
+        rowData.push(fullTokens[baseIndex + 3]); // 数量
+        rowData.push(fullTokens[baseIndex + 4]); // 单价
+        rowData.push(fullTokens[baseIndex + 5]); // 金额
       }
-      const splitTokens = currentTokens.slice(startIndex + 1, itemStartNumberIndex).join('/').split('/').filter(token => token.trim()).map(token => token.trim());
-      splitTokens.forEach((token, index) => {
-        const fieldName = `${ groupPrefix[index % groupLength] }${ Math.floor(index / groupLength) + 1 }`;
-        headerRow.includes(fieldName) || headerRow.push(fieldName);
-        rowData.push(token);
-      });
       resultData.push(rowData);
       fullTokens = fullTokens.slice(itemStartNumberIndex);
+      baseIndex = 0;
     }
     utils.xlsxSaver(outputFilePath, '识别结果', resultData, headerRow.map(() => ({ wch: 16 })));
     return '内容识别完成';

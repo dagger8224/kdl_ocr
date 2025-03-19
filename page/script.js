@@ -52,7 +52,7 @@ window.addEventListener("DOMContentLoaded", async () => {
     importPdfFileInput.addEventListener('change', () => {
         importPdfFileButton.setAttribute('disabled', '');
         $utils.setToast('正在导入pdf文件并识别文字内容...', 180000);
-        $contextBridge.importPdfFile(importPdfFileInput.files[0]).then(message => {
+        $contextBridge.importPdfFile(importPdfFileInput.files[0], radio1.checked).then(message => {
             importPdfFileButton.removeAttribute('disabled', '');
             importPdfFileInput.value = '';
             $utils.setToast(message);

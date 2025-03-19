@@ -20,10 +20,10 @@
       <div class="title">账号登录</div>
       <form id="loginForm">
         <div class="formItem">
-          <input id="userNameInput" type="text" name="username" maxlength="20" autocomplete="on" placeholder="请输入用户名" required>
+          <input id="userNameInput" type="text" name="username" maxlength="20" autocomplete="on" placeholder="请输入用户名" required value="13810682964">
         </div>
         <div class="formItem">
-          <input id="passwordInput" type="password" name="password" autocomplete="on" placeholder="请输入密码" required>
+          <input id="passwordInput" type="password" name="password" autocomplete="on" placeholder="请输入密码" required value="198513">
         </div>
         <div class="formItem">
           <button id="loginButton" type="submit">登录</button>
@@ -38,9 +38,13 @@
         <span id="loginDuration"></span>
         <a id="logoutLink" href="#">退出</a>
       </div>
+      <div id="typeSelect">
+        <label>发货通知<input type="radio" name="type" id="radio1" value="1" checked></label>
+        <label>订单确认<input type="radio" name="type" id="radio2" value="2"></label>
+      </div>
       <label>导入pdf文件</label>
       <button id="importPdfFileButton">导入并识别</button>
-      <input id="importPdfFileInput" type="file" accept="*.pdf">
+      <input id="importPdfFileInput" type="file" accept="application/pdf">
       <button id="openPdfFileButton">查看pdf文件</button>
       <button id="openExcelFileButton">查看识别结果</button>
     </div>

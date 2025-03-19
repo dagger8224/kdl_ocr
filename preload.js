@@ -11,7 +11,7 @@ window.addEventListener('DOMContentLoaded', () => {
     verifyLicense: (account, password) => ipcRenderer.invoke('verifyLicense', account, password),
     login: form => ipcRenderer.invoke('login', form),
     logout: () => ipcRenderer.invoke('logout'),
-    importPdfFile: file => file && ipcRenderer.invoke('importPdfFile', webUtils.getPathForFile(file)),
+    importPdfFile: (file, isType1) => file && ipcRenderer.invoke('importPdfFile', webUtils.getPathForFile(file), isType1),
     openFile: filePath => ipcRenderer.invoke('openFile', filePath),
     startConvert: () => ipcRenderer.invoke('startConvert')
   });
