@@ -18,15 +18,29 @@ exports.fetcher = async (url, params = {
   return response[resolver]();
 };
 
-exports.xlsxSaver = (filePath, name, data, cols) => fsPromises.writeFile(filePath, nodeXlsx.build([{
-  name,
-  data
-}], {
+exports.xlsxParser = filePath => nodeXlsx.parse(filePath, {
+  cellDates: true
+})?.[0]?.data || [];
+
+exports.xlsxSheetParser = filePath => nodeXlsx.parse(filePath, {
+  cellDates: true
+}) || [];
+
+exports.xlsxSaver = (filePath, sheets, cols) => fsPromises.writeFile(filePath, nodeXlsx.build(sheets, {
   cellDates: false,
   sheetOptions: {
     '!cols': cols
   }
 }));
+
+exports.dataResolver = rawData => {
+  const [headerRow] = rawData;
+  return rawData.filter((row, index) => index && row.length).map(row => {
+    const resolvedRow = {};
+    row.forEach((value, index) => (resolvedRow[headerRow[index]] = value));
+    return resolvedRow;
+  });
+};
 
 // 图片内容数据转换器
 exports.getTextFromPDF = async path => {

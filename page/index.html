@@ -41,12 +41,40 @@
       <div id="typeSelect">
         <label>发货通知<input type="radio" name="type" id="radio1" value="1" checked></label>
         <label>订单确认<input type="radio" name="type" id="radio2" value="2"></label>
+        <label>订单拆分<input type="radio" name="type" id="radio3" value="3"></label>
       </div>
-      <label>导入pdf文件</label>
-      <button id="importPdfFileButton">导入并识别</button>
-      <input id="importPdfFileInput" type="file" accept="application/pdf">
-      <button id="openPdfFileButton">查看pdf文件</button>
-      <button id="openExcelFileButton">查看识别结果</button>
+      <div id="panel12">
+        <button id="importPdfFileButton">导入pdf文件并识别</button>
+        <input id="importPdfFileInput" type="file" accept="application/pdf">
+        <button id="openPdfFileButton">查看pdf文件</button>
+        <button id="openExcelFileButton">查看识别结果</button>
+      </div>
+      <div id="panel3">
+        <div class="lineWrapper">
+          <button id="importProductTypeFileButton">导入产品类别表</button>
+          <input id="importProductTypeFileInput" type="file" accept="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel">
+          <button id="openProductTypeFileButton">查看产品类别表</button>
+        </div>
+        <div class="lineWrapper">
+          <button id="importPriceFileButton">导入产品价格表</button>
+          <input id="importPriceFileInput" type="file" accept="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel">
+          <button id="openPriceFileButton">查看产品价格表</button>
+        </div>
+        <div class="lineWrapper">
+          <button id="importDealerFileButton">导入经销商信息表</button>
+          <input id="importDealerFileInput" type="file" accept="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel">
+          <button id="openDealerFileButton">查看经销商信息表</button>
+        </div>
+        <div class="lineWrapper">
+          <button id="importOrderFileButton">导入原始订单数据表并拆分</button>
+          <input id="importOrderFileInput" type="file" accept="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel">
+          <button id="openOrderFileButton">查看原始订单数据表</button>
+        </div>
+        <div class="lineWrapper">
+          <button id="openSplitOrderFileButton">查看拆分订单数据表</button>
+          <button id="openInvalidOrderFileButton">查看无效订单数据表</button>
+        </div>
+      </div>
     </div>
   </body>
 

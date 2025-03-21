@@ -5,10 +5,6 @@ const path = require('path');
 const { app, BrowserWindow, ipcMain, shell } = require('electron');
 const utils = require('./utils.js');
 
-const dataPath = '../data';
-const inputFilePath = `${ dataPath }/input.pdf`;
-const outputFilePath = `${ dataPath }/output.xlsx`;
-
 const loginErrorMessage = '账号或者密码有误，请重新输入';
 
 const profile = {
@@ -18,10 +14,27 @@ const profile = {
   }
 };
 
+const dataPath = '../data';
+const inputFilePath = `${ dataPath }/input.pdf`;
+const outputFilePath = `${ dataPath }/output.xlsx`;
+const productTypeFilePath = `${ dataPath }/productTypes.xlsx`;
+const priceFilePath = `${ dataPath }/prices.xlsx`;
+const dealerFilePath = `${ dataPath }/dealers.xlsx`;
+const orderFilePath = `${ dataPath }/orders.xlsx`;
+const splitOrderFilePath = `${ dataPath }/splitOrders.xlsx`;
+const invalidOrderFilePath = `${ dataPath }/invalidOrders.xlsx`;
+
 // 观察文件状态
 const fileExistsStateWatcher = () => BrowserWindow.getAllWindows()[0].webContents.send('fileExistsState', {
   openPdfFileButton: fs.existsSync(inputFilePath),
   openExcelFileButton: fs.existsSync(outputFilePath),
+  openProductTypeFileButton: fs.existsSync(productTypeFilePath),
+  openPriceFileButton: fs.existsSync(priceFilePath),
+  openDealerFileButton: fs.existsSync(dealerFilePath),
+  openOrderFileButton: fs.existsSync(orderFilePath),
+  openSplitOrderFileButton: fs.existsSync(splitOrderFilePath),
+  openInvalidOrderFileButton: fs.existsSync(invalidOrderFilePath),
+  importOrderFileButton: fs.existsSync(productTypeFilePath) && fs.existsSync(priceFilePath) && fs.existsSync(dealerFilePath)
 });
 
 fs.existsSync(dataPath) || fs.mkdirSync(dataPath, 744);
@@ -193,10 +206,332 @@ ipcMain.handle('importPdfFile', async (_, filePath, isType1) => {
       fullTokens = fullTokens.slice(itemStartNumberIndex);
       baseIndex = 0;
     }
-    utils.xlsxSaver(outputFilePath, '识别结果', resultData, headerRow.map(() => ({ wch: 16 })));
+    utils.xlsxSaver(outputFilePath, [{
+      name: '识别结果',
+      data: resultData
+    }], headerRow.map(() => ({ wch: 16 })));
     return '内容识别完成';
   } catch (error) {
     return error.code === 'EBUSY' ? `请关闭已打开的pdf和转换结果文件后再试` : `操作失败：${ error.message }`;
+  }
+});
+
+const SiemensCodeField = '西门子编码';
+const productTypeField = '货品分类';
+const operatorField = '操作人';
+const timeField = '导入时间';
+// 导入产品类别表
+ipcMain.handle('importProductTypeFile', async (_, filePath) => {
+  try {
+    const productTypeData = utils.xlsxParser(filePath);
+    const productTypeDataHeaderRow = productTypeData[0];
+    if (!productTypeDataHeaderRow?.includes(SiemensCodeField)) {
+      return '产品类别表中没有西门子编码数据';
+    }
+    if (!productTypeDataHeaderRow?.includes(productTypeField)) {
+      return '产品类别表中没有货品分类数据';
+    }
+    const resolvedProductTypeData = {};
+    utils.dataResolver(productTypeData).forEach(row => {
+      if (row[SiemensCodeField] && row[productTypeField]) {
+        resolvedProductTypeData[row[SiemensCodeField]] = row;
+      }
+    });
+    const operator = profile.licenseInfo.username;
+    const currentTime = new Date().toLocaleString();
+    let resolvedData = [];
+    if (fs.existsSync(productTypeFilePath)) {
+      const resolvedExistProductTypeData = {};
+      utils.dataResolver(utils.xlsxParser(productTypeFilePath)).forEach(row => (resolvedExistProductTypeData[row[SiemensCodeField]] = row));
+      Object.keys(resolvedProductTypeData).forEach(SiemensCode => {
+        const row = resolvedProductTypeData[SiemensCode];
+        const existRow = resolvedExistProductTypeData[SiemensCode] || {};
+        existRow[SiemensCodeField] = SiemensCode;
+        existRow[productTypeField] = row[productTypeField];
+        resolvedExistProductTypeData[SiemensCode] = existRow;
+      });
+      resolvedData = Object.keys(resolvedExistProductTypeData).map(SiemensCode => {
+        const row = resolvedExistProductTypeData[SiemensCode];
+        return [row[SiemensCodeField], row[productTypeField], operator, currentTime];
+      });
+    } else {
+      resolvedData = Object.values(resolvedProductTypeData).map(row => [row[SiemensCodeField], row[productTypeField], operator, currentTime]);
+    }
+    resolvedData.unshift([SiemensCodeField, productTypeField, operatorField, timeField]);
+    await utils.xlsxSaver(productTypeFilePath, [{
+      name: '产品类别表',
+      data: resolvedData
+    }], [{ wch: 15 }, { wch: 10 }, { wch: 10 }, { wch: 25 }]);
+    return '导入产品类别表完成';
+  } catch (error) {
+    return `导入产品类别表失败：${ error.message }`;
+  }
+});
+
+const productCodeField = '产品编码';
+const standardSellPriceField = '标准价格-销售价格';
+const standardBuyPriceField = '标准价格-采购价格';
+const BeijingSpecialSellPriceField = '北京特殊价-销售价格';
+const BeijingSpecialBuyPriceField = '北京特殊价-采购价格';
+const IAVBPSellPriceField = 'IA VBP-销售价格';
+const IAVBPBuyPriceField = 'IA VBP-采购价格';
+const VBP1SellPriceField = 'VBP1-销售价格';
+const VBP1BuyPriceField = 'VBP1-采购价格';
+const VBP2SellPriceField = 'VBP2-销售价格';
+const VBP2BuyPriceField = 'VBP2-采购价格';
+const resolvedPriceDataHeaderRow = [SiemensCodeField, productCodeField, standardSellPriceField, standardBuyPriceField, BeijingSpecialSellPriceField, BeijingSpecialBuyPriceField, IAVBPSellPriceField, IAVBPBuyPriceField, VBP1SellPriceField, VBP1BuyPriceField, VBP2SellPriceField, VBP2BuyPriceField];
+// 导入产品价格表
+ipcMain.handle('importPriceFile', async (_, filePath) => {
+  try {
+    const priceData = utils.xlsxParser(filePath);
+    const priceDataHeaderRow = priceData[0];
+    for (let index = 0; index < resolvedPriceDataHeaderRow.length; ++index) {
+      if (!priceDataHeaderRow?.includes(resolvedPriceDataHeaderRow[index])) {
+        return `产品价格表中没有${ resolvedPriceDataHeaderRow[index] }数据`;
+      }
+    }
+    const resolvedPriceData = {};
+    utils.dataResolver(priceData).forEach(row => {
+      if (row[SiemensCodeField]) {
+        resolvedPriceData[row[SiemensCodeField]] = row;
+      }
+    });
+    const operator = profile.licenseInfo.username;
+    const currentTime = new Date().toLocaleString();
+    let resolvedData = [];
+    if (fs.existsSync(priceFilePath)) {
+      const resolvedExistPriceData = {};
+      utils.dataResolver(utils.xlsxParser(priceFilePath)).forEach(row => (resolvedExistPriceData[row[SiemensCodeField]] = row));
+      Object.keys(resolvedPriceData).forEach(SiemensCode => {
+        const row = resolvedPriceData[SiemensCode];
+        const existRow = resolvedExistPriceData[SiemensCode] || {};
+        resolvedPriceDataHeaderRow.forEach(field => {
+          existRow[field] = row[field];
+        });
+        resolvedExistPriceData[SiemensCode] = existRow;
+      });
+      resolvedData = Object.keys(resolvedExistPriceData).map(SiemensCode => {
+        const row = resolvedExistPriceData[SiemensCode];
+        return [...resolvedPriceDataHeaderRow.map(field => row[field]), operator, currentTime];
+      });
+    } else {
+      resolvedData = Object.values(resolvedPriceData).map(row => [...resolvedPriceDataHeaderRow.map(field => row[field]), operator, currentTime]);
+    }
+    resolvedData.unshift([...resolvedPriceDataHeaderRow, operatorField, timeField]);
+    await utils.xlsxSaver(priceFilePath, [{
+      name: '产品价格表',
+      data: resolvedData
+    }], [{ wch: 20 }, { wch: 20 }, { wch: 20 }, { wch: 20 }, { wch: 20 }, { wch: 20 }, { wch: 20 }, { wch: 20 }, { wch: 20 }, { wch: 20 }, { wch: 20 }, { wch: 20 }, { wch: 20 }, { wch: 20 }]);
+    return '导入产品价格表完成';
+  } catch (error) {
+    return `导入产品价格表失败：${ error.message }`;
+  }
+});
+
+const dealerCodeField = '客户编码';
+const dealerNameField = '客户名称';
+const areaField = '区域';
+const priceLevelField = '价格级别';
+const ShiptoPartyField = 'ShiptoParty';
+const resolvedDealerDataHeaderRow = [dealerCodeField, dealerNameField, areaField, priceLevelField, ShiptoPartyField];
+// 导入经销商信息表
+ipcMain.handle('importDealerFile', async (_, filePath) => {
+  try {
+    const dealerData = utils.xlsxParser(filePath);
+    const dealerDataHeaderRow = dealerData[0];
+    if (!dealerDataHeaderRow?.includes(dealerCodeField)) {
+      return '经销商信息表中没有客户编码数据';
+    }
+    if (!dealerDataHeaderRow?.includes(priceLevelField)) {
+      return '经销商信息表中没有价格级别数据';
+    }
+    if (!dealerDataHeaderRow?.includes(ShiptoPartyField)) {
+      return '经销商信息表中没有子账号数据';
+    }
+    const resolvedDealerData = [];
+    utils.dataResolver(dealerData).forEach(row => {
+      if (row[dealerCodeField] && row[ShiptoPartyField]) {
+        resolvedDealerData.push(row);
+      }
+    });
+    const operator = profile.licenseInfo.username;
+    const currentTime = new Date().toLocaleString();
+    const resolvedData = (fs.existsSync(dealerFilePath) ? [...utils.dataResolver(utils.xlsxParser(dealerFilePath)), ...resolvedDealerData] : resolvedDealerData).map(row => [...resolvedDealerDataHeaderRow.map(field => row[field]), operator, currentTime]);
+    resolvedData.unshift([...resolvedDealerDataHeaderRow, operatorField, timeField]);
+    await utils.xlsxSaver(dealerFilePath, [{
+      name: '经销商信息表',
+      data: resolvedData
+    }], [{ wch: 20 }, { wch: 35 }, { wch: 8 }, { wch: 8 }, { wch: 12 }, { wch: 20 }, { wch: 20 }]);
+    return '导入经销商信息表完成';
+  } catch (error) {
+    return `导入经销商信息表失败：${ error.message }`;
+  }
+});
+
+const orderField = '订单';
+const subOrderField = '子账号';
+const orderTypeField = '订单类型';
+const productCountField = '要货数量';
+const rateField = '毛利率';
+const totalBuyAmountField = '采购总价';
+const amountField = '欠货金额';
+const invalidReasonField = '无效原因';
+const sellPriceField = '销售价格';
+const buyPriceField = '采购价格';
+const requiredOrderDataHeaderRow = [dealerCodeField, SiemensCodeField, productCountField, amountField];
+const commonSheetHeaderRow = [orderTypeField, productTypeField, productCountField, sellPriceField, priceLevelField, buyPriceField, rateField, totalBuyAmountField];
+const proteinSheetHeaderRow = [dealerCodeField, dealerNameField, SiemensCodeField, ...commonSheetHeaderRow];
+const otherSheetHeaderRow = [dealerCodeField, dealerNameField, SiemensCodeField, orderField, subOrderField, ...commonSheetHeaderRow];
+const invalidOrderHeaderRow = [dealerCodeField, dealerNameField, SiemensCodeField, invalidReasonField];
+const priceStrategy = [{
+  sellPriceField: standardSellPriceField,
+  buyPriceField: standardBuyPriceField,
+  priceLevelField: '标准价格'
+}, {
+  sellPriceField: BeijingSpecialSellPriceField,
+  buyPriceField: BeijingSpecialBuyPriceField,
+  priceLevelField: '北京特殊价'
+}, {
+  sellPriceField: IAVBPSellPriceField,
+  buyPriceField: IAVBPBuyPriceField,
+  priceLevelField: 'IA VBP'
+}, {
+  sellPriceField: VBP1SellPriceField,
+  buyPriceField: VBP1BuyPriceField,
+  priceLevelField: 'VBP1'
+}, {
+  sellPriceField: VBP2SellPriceField,
+  buyPriceField: VBP2BuyPriceField,
+  priceLevelField: 'VBP2'
+}];
+// 导入原始订单数据表并拆分
+ipcMain.handle('importOrderFile', async (_, filePath) => {
+  try {
+    fs.copyFileSync(filePath, orderFilePath, fs.constants.COPYFILE_FICLONE);
+    const orderDataSheets = utils.xlsxSheetParser(orderFilePath, {
+      cellDates: true
+    });
+    const orderData = [];
+    for (let sheetIndex = 0; sheetIndex < orderDataSheets.length; ++sheetIndex) {
+      const sheet = orderDataSheets[sheetIndex];
+      const orderType = sheet.name;
+      if (['临采订单', 'PTO订单'].includes(orderType)) {
+        const data = sheet.data || [];
+        const orderDataHeaderRow = data[0] || [];
+        for (let index = 0; index < requiredOrderDataHeaderRow.length; ++index) {
+          if (!orderDataHeaderRow?.includes(requiredOrderDataHeaderRow[index])) {
+            return `${ orderType }中没有${ requiredOrderDataHeaderRow[index] }数据`;
+          }
+        }
+        utils.dataResolver(data).forEach(row => {
+          row[orderTypeField] = orderType;
+          orderData.push(row);
+        });
+      }
+    }
+    const resolvedProductTypeData = {};
+    utils.dataResolver(utils.xlsxParser(productTypeFilePath)).forEach(row => {
+      resolvedProductTypeData[row[SiemensCodeField]] = row;
+    });
+    const resolvedPriceData = {};
+    utils.dataResolver(utils.xlsxParser(priceFilePath)).forEach(row => {
+      resolvedPriceData[row[SiemensCodeField]] = row;
+    });
+    const resolvedDealerData = {};
+    utils.dataResolver(utils.xlsxParser(dealerFilePath)).forEach(row => {
+      const dealerCode = row[dealerCodeField];
+      if (resolvedDealerData[dealerCode]) {
+        resolvedDealerData[dealerCode].push(row);
+      } else {
+        resolvedDealerData[dealerCode] = [row];
+      }
+    });
+    const splitOrders = {}; // 根据订单类型/货品分类/子账号信息合并订单
+    const invalidOrders = [];
+    const proteinSheet = {
+      name: '蛋白',
+      data: []
+    };
+    const otherSheet = {
+      name: 'LS和配件',
+      data: []
+    };
+    orderData.forEach(row => {
+      const SiemensCode = row[SiemensCodeField];
+      const productType = resolvedProductTypeData[SiemensCode]?.[productTypeField];
+      if (productType) {
+        if (!['LS', '配件', '蛋白'].includes(productType)) {
+          row[invalidReasonField] = `订单货品分类“${ productType }”不受支持`;
+          return invalidOrders.push(row);
+        } else {
+          row[productTypeField] = productType;
+          const resolvedProductCount = Number(row[productCountField]);
+          const sellPrice = Math.floor(Number(row[amountField]) / resolvedProductCount);
+          const priceRow = resolvedPriceData[SiemensCode];
+          if (!priceRow) {
+            row[invalidReasonField] = '产品价格表中没有找到与当前西门子编码匹配的数据';
+            return invalidOrders.push(row);
+          }
+          const strategy = priceStrategy.find(strategy => priceRow[strategy.sellPriceField] === sellPrice);
+          if (strategy) {
+            row[sellPriceField] = sellPrice;
+            row[buyPriceField] = priceRow[strategy.buyPriceField];
+            row[priceLevelField] = strategy.priceLevelField;
+            const dealerCode = row[dealerCodeField];
+            const dealerList = resolvedDealerData[dealerCode];
+            if (dealerList) {
+              const dealerRow = row[priceLevelField] === 'VBP1' ? dealerList.find(dealer => dealer[priceLevelField] === 'VBP1') || dealerList[0] : dealerList.find(dealer => dealer[priceLevelField] !== 'VBP1');
+              if (dealerRow) {
+                row[subOrderField] = dealerRow[ShiptoPartyField];
+              } else {
+                row[invalidReasonField] = `没有找到与价格级别“${ row[priceLevelField] }”相匹配的子账号数据`;
+                return invalidOrders.push(row);
+              }
+            } else {
+              row[invalidReasonField] = `经销商信息表中没有找到与客户编码“${ dealerCode }”相匹配的经销商数据`;
+              return invalidOrders.push(row);
+            }
+          } else {
+            row[invalidReasonField] = `产品价格表中没有找到与订单销售价格“${ sellPrice }”相匹配的产品数据`;
+            return invalidOrders.push(row);
+          }
+          const resolvedSellPrice = Number(row[sellPriceField]);
+          row[rateField] = `${ (100 - Number(row[buyPriceField]) * 100 / resolvedSellPrice).toFixed(2) }%`;
+          row[totalBuyAmountField] = resolvedProductCount * resolvedSellPrice;
+          if (productType === '蛋白') {
+            proteinSheet.data.push(proteinSheetHeaderRow.map(field => row[field]));
+          } else {
+            const uniqueKey = `${ productType }-${ row[orderTypeField] }-${ row[subOrderField] }`; // 由货品分类 - 订单类型 - 子账号生成唯一键
+            if (splitOrders[uniqueKey]) {
+              splitOrders[uniqueKey].push(row);
+            } else {
+              splitOrders[uniqueKey] = [row];
+            }
+          }
+        }
+      } else {
+        row[invalidReasonField] = '产品类别表中没有找到与当前西门子编号对应的货品分类数据';
+        return invalidOrders.push(row);
+      }
+    });
+    proteinSheet.data.unshift(proteinSheetHeaderRow);
+    otherSheet.data.unshift(otherSheetHeaderRow);
+    Object.values(splitOrders).forEach((orders, index) => orders.forEach(order => {
+      order[orderField] = `${ orderField }${ index + 1 }`;
+      otherSheet.data.push(otherSheetHeaderRow.map(field => order[field]));
+    }));
+    const wchList = otherSheetHeaderRow.map(_ => ({ wch: 15 }));
+    wchList[1].wch = 30;
+    await utils.xlsxSaver(splitOrderFilePath, [otherSheet, proteinSheet], wchList);
+    const invalidOrderData = invalidOrders.map(order => invalidOrderHeaderRow.map(field => order[field]));
+    invalidOrderData.unshift(invalidOrderHeaderRow);
+    await utils.xlsxSaver(invalidOrderFilePath, [{
+      name: '无效订单',
+      data: invalidOrderData
+    }], [{ wch: 15 }, { wch: 30 }, { wch: 15 }, { wch: 60 }]);
+    return '拆分订单完成';
+  } catch (error) {
+    return `拆分订单失败：${ error.message }`;
   }
 });
 

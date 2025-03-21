@@ -1,3 +1,12 @@
+const validateLogin = async () => {
+    const { loginTime } = await $contextBridge.getLoginInfo();
+    if (Date.now() - loginTime > 2 * 3600 * 1000) {
+        $utils.setToast('请重新登录');
+        logoutLink.click();
+        return false;
+    }
+    return true;
+};
 
 window.addEventListener("DOMContentLoaded", async () => {
     // 获取配置信息
@@ -42,12 +51,8 @@ window.addEventListener("DOMContentLoaded", async () => {
 
     // 导入pdf文件按钮点击事件
     importPdfFileButton.addEventListener('click', async () => {
-        const { loginTime } = await $contextBridge.getLoginInfo();
-        if (Date.now() - loginTime > 2 * 3600 * 1000) {
-            $utils.setToast('请重新登录');
-            return logoutLink.click();
-        }
-        importPdfFileInput.click();
+        const isLoginValid = await validateLogin();
+        isLoginValid && importPdfFileInput.click();
     });
     importPdfFileInput.addEventListener('change', () => {
         importPdfFileButton.setAttribute('disabled', '');
@@ -60,5 +65,73 @@ window.addEventListener("DOMContentLoaded", async () => {
     });
     openPdfFileButton.addEventListener('click', () => $contextBridge.openFile('input.pdf'));
     openExcelFileButton.addEventListener('click', () => $contextBridge.openFile('output.xlsx'));
+    // 订单拆分功能
+    document.querySelector('#typeSelect').addEventListener('change', event => {
+        const showPanel3 = event.target === radio3;
+        panel12.setAttribute('style', `display: ${ showPanel3 ? 'none' : 'block' }`);
+        panel3.setAttribute('style', `display: ${ showPanel3 ? 'block' : 'none' }`);
+    });
+    // 导入产品类别表按钮点击事件
+    importProductTypeFileButton.addEventListener('click', async () => {
+        const isLoginValid = await validateLogin();
+        isLoginValid && importProductTypeFileInput.click();
+    });
+    importProductTypeFileInput.addEventListener('change', () => {
+        importProductTypeFileButton.setAttribute('disabled', '');
+        $utils.setToast('正在导入产品类别表...', 180000);
+        $contextBridge.importProductTypeFile(importProductTypeFileInput.files[0]).then(message => {
+            importProductTypeFileButton.removeAttribute('disabled', '');
+            importProductTypeFileInput.value = '';
+            $utils.setToast(message);
+        });
+    });
+    // 导入产品价格表按钮点击事件
+    importPriceFileButton.addEventListener('click', async () => {
+        const isLoginValid = await validateLogin();
+        isLoginValid && importPriceFileInput.click();
+    });
+    importPriceFileInput.addEventListener('change', () => {
+        importPriceFileButton.setAttribute('disabled', '');
+        $utils.setToast('正在导入产品价格表...', 180000);
+        $contextBridge.importPriceFile(importPriceFileInput.files[0]).then(message => {
+            importPriceFileButton.removeAttribute('disabled', '');
+            importPriceFileInput.value = '';
+            $utils.setToast(message);
+        });
+    });
+    // 导入经销商信息表按钮点击事件
+    importDealerFileButton.addEventListener('click', async () => {
+        const isLoginValid = await validateLogin();
+        isLoginValid && importDealerFileInput.click();
+    });
+    importDealerFileInput.addEventListener('change', () => {
+        importDealerFileButton.setAttribute('disabled', '');
+        $utils.setToast('正在导入经销商信息表...', 180000);
+        $contextBridge.importDealerFile(importDealerFileInput.files[0]).then(message => {
+            importDealerFileButton.removeAttribute('disabled', '');
+            importDealerFileInput.value = '';
+            $utils.setToast(message);
+        });
+    });
+    // 导入原始订单数据表按钮点击事件
+    importOrderFileButton.addEventListener('click', async () => {
+        const isLoginValid = await validateLogin();
+        isLoginValid && importOrderFileInput.click();
+    });
+    importOrderFileInput.addEventListener('change', () => {
+        importOrderFileButton.setAttribute('disabled', '');
+        $utils.setToast('正在导入原始订单数据表并拆分订单...', 180000);
+        $contextBridge.importOrderFile(importOrderFileInput.files[0]).then(message => {
+            importOrderFileButton.removeAttribute('disabled', '');
+            importOrderFileInput.value = '';
+            $utils.setToast(message);
+        });
+    });
+    openProductTypeFileButton.addEventListener('click', () => $contextBridge.openFile('productTypes.xlsx'));
+    openPriceFileButton.addEventListener('click', () => $contextBridge.openFile('prices.xlsx'));
+    openDealerFileButton.addEventListener('click', () => $contextBridge.openFile('dealers.xlsx'));
+    openOrderFileButton.addEventListener('click', () => $contextBridge.openFile('orders.xlsx'));
+    openSplitOrderFileButton.addEventListener('click', () => $contextBridge.openFile('splitOrders.xlsx'));
+    openInvalidOrderFileButton.addEventListener('click', () => $contextBridge.openFile('invalidOrders.xlsx'));
     $utils.toggleView('loginView');
 });

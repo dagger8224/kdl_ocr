@@ -20,7 +20,7 @@ button {
     padding: 0 20px;
     border-radius: 8px;
     border: 2px solid #cccccc;
-    margin-left: 10px;
+    margin-right: 15px;
 }
 
 input, select {
@@ -117,10 +117,6 @@ input[type=file], #toast, #errorView, #loginView, #operateView {
     padding: 0 30px;
 }
 
-#typeSelect {
-    margin-bottom: 10px;
-}
-
 #header {
     position: relative;
     margin-bottom: 15px;
@@ -143,4 +139,24 @@ input[type=file], #toast, #errorView, #loginView, #operateView {
 #logoutLink {
     float: right;
     margin-right: 8px;
+}
+
+.lineWrapper {
+    margin-bottom: 10px;
+}
+
+#typeSelect {
+    margin-bottom: 20px;
+}
+
+#typeSelect label, #typeSelect input {
+    cursor: pointer;
+}
+
+#typeSelect input {
+    vertical-align: text-top;
+}
+
+#panel3 {
+    display: none;
 }
