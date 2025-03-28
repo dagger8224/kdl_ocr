@@ -137,6 +137,16 @@ ipcMain.handle('logout', () => {
   return true;
 });
 
+const findToken = (tokens, prefixes) => {
+  tokens = tokens.map(token => token.trim());
+  const prefix = prefixes.find(prefix => tokens.find(token => token.startsWith(prefix)));
+  if (prefix) {
+    const token = tokens.find(token => token.startsWith(prefix));
+    return token.replace(prefix, '').trim() || '-';
+  }
+  return '-';
+};
+
 // 导入pdf数据
 ipcMain.handle('importPdfFile', async (_, filePath, isType1) => {
   try {
@@ -161,7 +171,7 @@ ipcMain.handle('importPdfFile', async (_, filePath, isType1) => {
       pageIndex++;
     }
     fullTokens = fullTokens.slice(0, fullTokens.findIndex(token => token.startsWith(isType1 ? 'These items are controlled by the U.S.' : 'RESERVATION CLAUSE')));
-    const headerRow = isType1 ? ['发货日期', '发货单号', '客户订单号', '西门子订单号', '西门子编码', '储存温度'] : ['发货日期', '客户订单号', '西门子订单号', '西门子编码', '储存温度', '数量', '单价', '金额'];
+    const headerRow = isType1 ? ['发货日期', '发货单号', '客户订单号', '西门子订单号', '西门子编码', '储存温度', 'UEG'] : ['发货日期', '客户订单号', '西门子订单号', '西门子编码', '储存温度', '数量', '单价', '金额'];
     const resultData = [headerRow];
     const groupPrefix = ['批号', '数量', '单位', '效期', '生产日期']; // 可能有多组批号效期数据
     const groupLength = groupPrefix.length;
@@ -175,9 +185,12 @@ ipcMain.handle('importPdfFile', async (_, filePath, isType1) => {
       itemStartNumberIndex = fullTokens.indexOf((itemStartNumber + '').padStart(6, '0'));
       itemStartNumberIndex === -1 && (itemStartNumberIndex = fullTokens.length);
       const currentTokens = fullTokens.slice(0, itemStartNumberIndex);
-      const storageCondition = currentTokens.find(token => token.trim().startsWith('Storage Condition:'));
-      rowData.push(storageCondition ? storageCondition.replace('Storage Condition:', '').trim() : '-');
+      /* if (rowData.includes('10311853')) {
+        debugger
+      } */
+      rowData.push(findToken(currentTokens, ['Storage Condition:', 'Temperature Condition: D3 Description:', 'Temperature Condition: D4 Description:']));
       if (isType1) {
+        rowData.push(findToken(currentTokens, ['Siemens Sort No: UEG:', 'REF:']));
         // 第一页结构与后面的不一样，分别处理
         startIndex = 0;
         if (itemStartNumber === 20) {
@@ -189,20 +202,25 @@ ipcMain.handle('importPdfFile', async (_, filePath, isType1) => {
           }
         }
         const splitTokens = currentTokens.slice(startIndex + 1, itemStartNumberIndex).join('/').split('/').filter(token => token.trim()).map(token => token.trim());
+        const group = [];
         splitTokens.forEach((token, index) => {
-          const fieldName = `${ groupPrefix[index % groupLength] }${ Math.floor(index / groupLength) + 1 }`;
+          const resolvedIndex = index % groupLength;
+          const fieldName = groupPrefix[resolvedIndex];
           headerRow.includes(fieldName) || headerRow.push(fieldName);
-          if ((index === 3 || index === 4) && !token.includes('/')) {
+          if ((resolvedIndex === 3 || resolvedIndex === 4) && !token.includes('/')) {
             token = `${ token.slice(0, 4) }/${ token.slice(4, 6) }/${ token.slice(6, 8) }`;
           }
-          rowData.push(token);
+          const rowIndex = Math.floor(index / groupLength);
+          const row = group[rowIndex] || [];
+          row.push(token);
+          group[rowIndex] = row;
         });
+        group.forEach(row => resultData.push([...rowData, ...row]));
       } else {
         rowData.push(fullTokens[baseIndex + 3]); // 数量
         rowData.push(fullTokens[baseIndex + 4]); // 单价
         rowData.push(fullTokens[baseIndex + 5]); // 金额
       }
-      resultData.push(rowData);
       fullTokens = fullTokens.slice(itemStartNumberIndex);
       baseIndex = 0;
     }
