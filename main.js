@@ -448,6 +448,9 @@ ipcMain.handle('importOrderFile', async (_, filePath) => {
         });
       }
     }
+    if (!orderData.length) {
+      return '原始订单数据表中没有名为“临采订单”或者“PTO订单”的sheet页';
+    }
     const resolvedProductTypeData = {};
     utils.dataResolver(utils.xlsxParser(productTypeFilePath)).forEach(row => {
       resolvedProductTypeData[row[SiemensCodeField]] = row;
