@@ -157,6 +157,6 @@ input[type=file], #toast, #errorView, #loginView, #operateView {
     vertical-align: text-top;
 }
 
-#panel3 {
+#panel3, #panel4 {
     display: none;
 }

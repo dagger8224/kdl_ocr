@@ -42,6 +42,7 @@
         <label>发货通知<input type="radio" name="type" id="radio1" value="1" checked></label>
         <label>订单确认<input type="radio" name="type" id="radio2" value="2"></label>
         <label>订单拆分<input type="radio" name="type" id="radio3" value="3"></label>
+        <label>发票聚合<input type="radio" name="type" id="radio4" value="4"></label>
       </div>
       <div id="panel12">
         <button id="importPdfFileButton">导入pdf文件并识别</button>
@@ -73,6 +74,21 @@
         <div class="lineWrapper">
           <button id="openSplitOrderFileButton">查看拆分订单数据表</button>
           <button id="openInvalidOrderFileButton">查看无效订单数据表</button>
+        </div>
+      </div>
+      <div id="panel4">
+        <div class="lineWrapper">
+          <button id="importBillFileButton">导入发票列表</button>
+          <input id="importBillFileInput" type="file" accept="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel">
+          <button id="importReceiptFileButton">导入收款列表</button>
+          <input id="importReceiptFileInput" type="file" accept="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel">
+          <button id="openBillFileButton">查看发票列表文件</button>
+          <button id="openReceiptFileButton">查看收款列表文件</button>
+        </div>
+        <div class="lineWrapper">
+          <button id="startMergeButton">聚合发票数据</button>
+          <button id="openMergeResultFileButton1">查看聚合结果文件（收款维度）</button>
+          <button id="openMergeResultFileButton2">查看聚合结果文件（发票维度）</button>
         </div>
       </div>
     </div>

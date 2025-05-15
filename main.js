@@ -23,6 +23,10 @@ const dealerFilePath = `${ dataPath }/dealers.xlsx`;
 const orderFilePath = `${ dataPath }/orders.xlsx`;
 const splitOrderFilePath = `${ dataPath }/splitOrders.xlsx`;
 const invalidOrderFilePath = `${ dataPath }/invalidOrders.xlsx`;
+const billFilePath = `${ dataPath }/bill.xlsx`;
+const receiptFilePath = `${ dataPath }/receipt.xlsx`;
+const mergeResultFilePath1 = `${ dataPath }/mergeResult1.xlsx`;
+const mergeResultFilePath2 = `${ dataPath }/mergeResult2.xlsx`;
 
 // 观察文件状态
 const fileExistsStateWatcher = () => BrowserWindow.getAllWindows()[0].webContents.send('fileExistsState', {
@@ -34,6 +38,10 @@ const fileExistsStateWatcher = () => BrowserWindow.getAllWindows()[0].webContent
   openOrderFileButton: fs.existsSync(orderFilePath),
   openSplitOrderFileButton: fs.existsSync(splitOrderFilePath),
   openInvalidOrderFileButton: fs.existsSync(invalidOrderFilePath),
+  openBillFileButton: fs.existsSync(billFilePath),
+  openReceiptFileButton: fs.existsSync(receiptFilePath),
+  openMergeResultFileButton1: fs.existsSync(mergeResultFilePath1),
+  openMergeResultFileButton2: fs.existsSync(mergeResultFilePath2),
   importOrderFileButton: fs.existsSync(productTypeFilePath) && fs.existsSync(priceFilePath) && fs.existsSync(dealerFilePath)
 });
 
@@ -554,6 +562,111 @@ ipcMain.handle('importOrderFile', async (_, filePath) => {
     return '拆分订单完成';
   } catch (error) {
     return `拆分订单失败：${ error.message }`;
+  }
+});
+
+// 导入发票列表文件
+ipcMain.handle('importBillFile', (_, filePath) => {
+  try {
+    fs.copyFileSync(filePath, billFilePath, fs.constants.COPYFILE_FICLONE);
+    return '导入发票列表数据完成';
+  } catch (error) {
+    return `导入发票列表数据失败：${ error.message }`;
+  }
+});
+
+// 导入收款列表文件
+ipcMain.handle('importReceiptFile', (_, filePath) => {
+  try {
+    fs.copyFileSync(filePath, receiptFilePath, fs.constants.COPYFILE_FICLONE);
+    return '导入收款列表数据完成';
+  } catch (error) {
+    return `导入收款列表数据失败：${ error.message }`;
+  }
+});
+
+// 聚合发票数据
+const billCodeField = '发票号码';
+const billAmountField = '发票金额';
+const billDateField = '发票日期';
+const receiptAmountField = '金额';
+const receiptDateField = '收款日期';
+const findCombination = (target, availableInvoices) => {
+  // 回溯法尝试找一组发票金额组合，正好等于 target
+  const result = [];
+  let found = false;
+  const dfs = (start, path, sum) => {
+    if (found) return;
+    if (sum === target) {
+      result.push(...path);
+      found = true;
+      return;
+    }
+    if (sum > target) return;
+    for (let i = start; i < availableInvoices.length; i++) {
+      const inv = availableInvoices[i];
+      if (inv.used) continue;
+      path.push(inv);
+      dfs(i + 1, path, sum + inv[billAmountField]);
+      path.pop();
+    }
+  };
+  dfs(0, [], 0);
+  return found ? result : null;
+};
+
+ipcMain.handle('startMerge', async () => {
+  try {
+    const billData = utils.xlsxParser(billFilePath);
+    const billDataHeaderRow = billData[0];
+    if (!billDataHeaderRow?.includes(billCodeField)) {
+      return '发票数据表中没有发票号码数据';
+    }
+    if (!billDataHeaderRow?.includes(billAmountField)) {
+      return '发票数据表中没有发票金额数据';
+    }
+    if (!billDataHeaderRow?.includes(billDateField)) {
+      return '发票数据表中没有发票日期数据';
+    }
+    const receiptData = utils.xlsxParser(receiptFilePath);
+    const receiptDataHeaderRow = receiptData[0];
+    if (!receiptDataHeaderRow?.includes(receiptAmountField)) {
+      return '收款数据表中没有收款金额数据';
+    }
+    if (!receiptDataHeaderRow?.includes(receiptDateField)) {
+      return '收款数据表中没有收款日期数据';
+    }
+    const operator = profile.licenseInfo.username;
+    const currentTime = new Date().toLocaleString();
+    const resolvedData1 = [];
+    const resolvedData2 = [];
+    const resolvedBillData = utils.dataResolver(billData).filter(item => item[billAmountField]);
+    utils.dataResolver(receiptData).forEach(receipt => {
+      const receiptAmount = receipt[receiptAmountField];
+      const receiptDate = new Date(receipt[receiptDateField]);
+      const match = findCombination(receiptAmount, resolvedBillData.filter(item => !item.used && (new Date(item[billDateField]) <= receiptDate))); // 过滤：未使用 & 发票日期 <= 收款日期
+      if (match) {
+        match.forEach(m => (m.used = true));
+        resolvedData1.push([receiptAmount, receipt[receiptDateField], match.map(item => item[billCodeField]).join(', '), operator, currentTime]);
+        match.forEach(item => resolvedData2.push([item[billCodeField], item[billAmountField], item[billDateField], receiptAmount, receipt[receiptDateField], operator, currentTime]));
+      } else {
+        resolvedData1.push([receiptAmount, receipt[receiptDateField], '没有找到与当前收款金额对应的发票组合', operator, currentTime]);
+      }
+    });
+    resolvedBillData.filter(item => !item.used).forEach(item => resolvedData2.push([item[billCodeField], item[billAmountField], item[billDateField]]));
+    resolvedData1.unshift([...receiptDataHeaderRow, '发票代码组', operatorField, '操作时间']);
+    resolvedData2.unshift([billCodeField, billAmountField, billDateField, receiptAmountField, receiptDateField, operatorField, '操作时间']);
+    await utils.xlsxSaver(mergeResultFilePath1, [{
+      name: '聚合结果表',
+      data: resolvedData1
+    }], [{ wch: 20 }, { wch: 20 }, { wch: 60 }, { wch: 20 }, { wch: 20 }]);
+    await utils.xlsxSaver(mergeResultFilePath2, [{
+      name: '聚合结果表',
+      data: resolvedData2
+    }], [{ wch: 20 }, { wch: 20 }, { wch: 20 }, { wch: 20 }, { wch: 20 }, { wch: 20 }, { wch: 20 }]);
+    return '聚合发票完成';
+  } catch (error) {
+    return `聚合发票数据失败：${ error.message }`;
   }
 });
 

@@ -66,10 +66,17 @@ window.addEventListener("DOMContentLoaded", async () => {
     openPdfFileButton.addEventListener('click', () => $contextBridge.openFile('input.pdf'));
     openExcelFileButton.addEventListener('click', () => $contextBridge.openFile('output.xlsx'));
     // 订单拆分功能
-    document.querySelector('#typeSelect').addEventListener('change', event => {
-        const showPanel3 = event.target === radio3;
-        panel12.setAttribute('style', `display: ${ showPanel3 ? 'none' : 'block' }`);
-        panel3.setAttribute('style', `display: ${ showPanel3 ? 'block' : 'none' }`);
+    document.querySelector('#typeSelect').addEventListener('change', ({ target }) => {
+        panel12.setAttribute('style', 'display: none');
+        panel3.setAttribute('style', 'display: none');
+        panel4.setAttribute('style', 'display: none');
+        if ([radio1, radio2].includes(target)) {
+            panel12.setAttribute('style', 'display: block');
+        } else if (target === radio3) {
+            panel3.setAttribute('style', 'display: block');
+        } else if (target === radio4) {
+            panel4.setAttribute('style', 'display: block');
+        }
     });
     // 导入产品类别表按钮点击事件
     importProductTypeFileButton.addEventListener('click', async () => {
@@ -133,5 +140,42 @@ window.addEventListener("DOMContentLoaded", async () => {
     openOrderFileButton.addEventListener('click', () => $contextBridge.openFile('orders.xlsx'));
     openSplitOrderFileButton.addEventListener('click', () => $contextBridge.openFile('splitOrders.xlsx'));
     openInvalidOrderFileButton.addEventListener('click', () => $contextBridge.openFile('invalidOrders.xlsx'));
+    // 发票聚合功能
+    // 导入发票列表按钮点击事件
+    importBillFileButton.addEventListener('click', async () => {
+        const isLoginValid = await validateLogin();
+        isLoginValid && importBillFileInput.click();
+    });
+    importBillFileInput.addEventListener('change', () => {
+        importBillFileButton.setAttribute('disabled', '');
+        $utils.setToast('正在导入发票列表文件...', 180000);
+        $contextBridge.importBillFile(importBillFileInput.files[0]).then(message => {
+            importBillFileButton.removeAttribute('disabled', '');
+            importBillFileInput.value = '';
+            $utils.setToast(message);
+        });
+    });
+    // 导入收款列表按钮点击事件
+    importReceiptFileButton.addEventListener('click', async () => {
+        const isLoginValid = await validateLogin();
+        isLoginValid && importReceiptFileInput.click();
+    });
+    importReceiptFileInput.addEventListener('change', () => {
+        importReceiptFileButton.setAttribute('disabled', '');
+        $utils.setToast('正在导入收款列表文件...', 180000);
+        $contextBridge.importReceiptFile(importReceiptFileInput.files[0]).then(message => {
+            importReceiptFileButton.removeAttribute('disabled', '');
+            importReceiptFileInput.value = '';
+            $utils.setToast(message);
+        });
+    });
+    startMergeButton.addEventListener('click', async () => {
+        const isLoginValid = await validateLogin();
+        isLoginValid && $contextBridge.startMerge().then(message => $utils.setToast(message)); 
+    })
+    openBillFileButton.addEventListener('click', () => $contextBridge.openFile('bill.xlsx'));
+    openReceiptFileButton.addEventListener('click', () => $contextBridge.openFile('receipt.xlsx'));
+    openMergeResultFileButton1.addEventListener('click', () => $contextBridge.openFile('mergeResult1.xlsx'));
+    openMergeResultFileButton2.addEventListener('click', () => $contextBridge.openFile('mergeResult2.xlsx'));
     $utils.toggleView('loginView');
 });
