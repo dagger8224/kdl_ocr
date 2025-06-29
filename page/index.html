@@ -86,6 +86,11 @@
           <button id="openReceiptFileButton">查看收款列表文件</button>
         </div>
         <div class="lineWrapper">
+          <span>发票日期需早于收款日期</span>
+          <input id="billDateBeforeReceiptDate" type="number" min="0" step="1" value="1">
+          <span>天</span>
+        </div>
+        <div class="lineWrapper">
           <button id="startMergeButton">聚合发票数据</button>
           <button id="openMergeResultFileButton1">查看聚合结果文件（收款维度）</button>
           <button id="openMergeResultFileButton2">查看聚合结果文件（发票维度）</button>

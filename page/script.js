@@ -170,8 +170,9 @@ window.addEventListener("DOMContentLoaded", async () => {
         });
     });
     startMergeButton.addEventListener('click', async () => {
+        $utils.setToast('开始聚合发票数据...', 180000);
         const isLoginValid = await validateLogin();
-        isLoginValid && $contextBridge.startMerge().then(message => $utils.setToast(message)); 
+        isLoginValid && $contextBridge.startMerge(billDateBeforeReceiptDate.value).then(message => $utils.setToast(message)); 
     })
     openBillFileButton.addEventListener('click', () => $contextBridge.openFile('bill.xlsx'));
     openReceiptFileButton.addEventListener('click', () => $contextBridge.openFile('receipt.xlsx'));
